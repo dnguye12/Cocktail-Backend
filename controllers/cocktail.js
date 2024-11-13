@@ -1,7 +1,10 @@
 const axios = require('axios')
 const cocktailRouter = require('express').Router()
 const config = require("../utils/config");
+
 const Cocktail = require('../models/cocktail')
+const Ingredient = require('../models/ingredient');
+const ingredient = require('../models/ingredient');
 
 const handleErrorResponse = (res, statusCode, message, details = null) => {
     console.error(details || message); // Log detailed error if provided
@@ -43,6 +46,17 @@ const parseNewDrink = (drink) => {
         ].filter(item => item.ingredient), // Filter out null ingredients
         dateModified: drink.dateModified ? new Date(drink.dateModified) : null
     });
+}
+
+const parseNewIngredient = (ingredient) => {
+    return new Ingredient({
+        _id: Number(ingredient.idIngredient),
+        name: ingredient.strIngredient,
+        description: ingredient.strDescription,
+        type: ingredient.strType,
+        isAlcohol: ingredient.strAlcohol === "Yes",
+        abv: Number(ingredient.strABV)
+    })
 }
 
 cocktailRouter.get('/id', async (req, res) => {
@@ -113,31 +127,31 @@ cocktailRouter.get('/name', async (req, res) => {
 
     try {
         const result = await axios.get(`${config.COCKTAIL_API}search.php?s=${name}`)
-        if(result && result.data) {
-            if(result.data.drinks) {
+        if (result && result.data) {
+            if (result.data.drinks) {
                 const drinks = result.data.drinks
                 let resDrinks = []
 
-                for(const helperDrink of drinks) {
+                for (const helperDrink of drinks) {
                     try {
                         const helperResult = await Cocktail.findById(helperDrink.idDrink)
-                        if(!helperResult) {
+                        if (!helperResult) {
                             const helperSavedDrink = parseNewDrink(helperDrink)
                             await helperSavedDrink.save()
                             resDrinks.push(helperSavedDrink)
-                        }else {
+                        } else {
                             resDrinks.push(helperResult)
                         }
-                    }catch(error) {
+                    } catch (error) {
                         console.log(error)
                     }
                 }
                 res.json(resDrinks)
-            }else {
+            } else {
                 return handleErrorResponse(res, 403, 'No drink for this input text.');
             }
         }
-    }catch(error) {
+    } catch (error) {
         console.log(error)
         return handleErrorResponse(res, 500, 'Database Error.');
     }
@@ -160,9 +174,45 @@ cocktailRouter.get('/random', async (req, res) => {
                 }
 
 
-                res.json(result.data.drinks)
+                return res.json(result.data.drinks)
             }
         }
+    } catch (error) {
+        console.log(error)
+        return handleErrorResponse(res, 500, 'Database Error.');
+    }
+})
+
+cocktailRouter.get('/ingredient', async (req, res) => {
+    const { name } = req.query
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        return handleErrorResponse(res, 400, 'Name input is required and must be a valid string.');
+    }
+
+    try {
+        const result = await axios.get(`${config.COCKTAIL_API}search.php?i=${name}`)
+        if (result && result.data) {
+            if (result.data.ingredients) {
+                const resultI = result.data.ingredients[0]
+
+                try {
+                    const foundI = await Ingredient.findById(Number(resultI.idIngredient))
+                    if(foundI) {
+                        return res.json(foundI)
+                    }else {
+                        const newI = parseNewIngredient(resultI)
+                        await newI.save()
+                        return res.json(newI)
+                    }
+                }catch(error) {
+                    console.log(error)
+                }
+            } else {
+                return handleErrorResponse(res, 403, 'No ingredients for this input text.');
+            }
+        }
+
     } catch (error) {
         console.log(error)
         return handleErrorResponse(res, 500, 'Database Error.');
