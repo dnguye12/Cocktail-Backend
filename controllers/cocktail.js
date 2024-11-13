@@ -58,7 +58,7 @@ cocktailRouter.get('/id', async (req, res) => {
             return res.json(result)
         }
     } catch (error) {
-
+        console.log(error)
     }
 
     try {
@@ -89,11 +89,65 @@ cocktailRouter.get('/id', async (req, res) => {
     }
 })
 
-cocktailRouter.get('/random', async(req, res) => {
+cocktailRouter.get('/name', async (req, res) => {
+    const { name } = req.query
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        return handleErrorResponse(res, 400, 'Name input is required and must be a valid string.');
+    }
+
+    const words = name.trim().split(/\s+/);
+    const regexPattern = words.map(word => `(?=.*${word})`).join('');
+    const regex = new RegExp(regexPattern, 'i');
+
+    try {
+        const result = await Cocktail.find({
+            name: regex
+        })
+        if (result.length > 0) {
+            return res.json(result)
+        }
+    } catch (error) {
+        console.log(error)
+    }
+
+    try {
+        const result = await axios.get(`${config.COCKTAIL_API}search.php?s=${name}`)
+        if(result && result.data) {
+            if(result.data.drinks) {
+                const drinks = result.data.drinks
+                let resDrinks = []
+
+                for(const helperDrink of drinks) {
+                    try {
+                        const helperResult = await Cocktail.findById(helperDrink.idDrink)
+                        if(!helperResult) {
+                            const helperSavedDrink = parseNewDrink(helperDrink)
+                            await helperSavedDrink.save()
+                            resDrinks.push(helperSavedDrink)
+                        }else {
+                            resDrinks.push(helperResult)
+                        }
+                    }catch(error) {
+                        console.log(error)
+                    }
+                }
+                res.json(resDrinks)
+            }else {
+                return handleErrorResponse(res, 403, 'No drink for this input text.');
+            }
+        }
+    }catch(error) {
+        console.log(error)
+        return handleErrorResponse(res, 500, 'Database Error.');
+    }
+})
+
+cocktailRouter.get('/random', async (req, res) => {
     try {
         const result = await axios.get(`${config.COCKTAIL_API}random.php`)
 
-        if(result && result.data) {
+        if (result && result.data) {
             if (result.data.drinks) {
                 const drink = result.data.drinks[0]
                 const newCocktail = parseNewDrink(drink)
@@ -109,10 +163,12 @@ cocktailRouter.get('/random', async(req, res) => {
                 res.json(result.data.drinks)
             }
         }
-    }catch(error) {
+    } catch (error) {
         console.log(error)
         return handleErrorResponse(res, 500, 'Database Error.');
     }
 })
+
+
 
 module.exports = cocktailRouter
