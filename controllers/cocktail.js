@@ -4,7 +4,6 @@ const config = require("../utils/config");
 
 const Cocktail = require('../models/cocktail')
 const Ingredient = require('../models/ingredient');
-const ingredient = require('../models/ingredient');
 
 const handleErrorResponse = (res, statusCode, message, details = null) => {
     console.error(details || message); // Log detailed error if provided
@@ -44,7 +43,9 @@ const parseNewDrink = (drink) => {
             { ingredient: drink.strIngredient14, measure: drink.strMeasure14 },
             { ingredient: drink.strIngredient15, measure: drink.strMeasure15 }
         ].filter(item => item.ingredient), // Filter out null ingredients
-        dateModified: drink.dateModified ? new Date(drink.dateModified) : null
+        dateModified: drink.dateModified ? new Date(drink.dateModified) : null,
+        likes: 0,
+        dislikes: 0
     });
 }
 
@@ -168,13 +169,13 @@ cocktailRouter.get('/random', async (req, res) => {
 
                 try {
                     const savedCocktail = await newCocktail.save()
-                    return res.json(savedCocktail)
+                    return res.json(newCocktail)
                 } catch (error) {
                     console.log(error)
                 }
 
 
-                return res.json(result.data.drinks)
+                return res.json(newCocktail)
             }
         }
     } catch (error) {
@@ -198,14 +199,14 @@ cocktailRouter.get('/ingredient', async (req, res) => {
 
                 try {
                     const foundI = await Ingredient.findById(Number(resultI.idIngredient))
-                    if(foundI) {
+                    if (foundI) {
                         return res.json(foundI)
-                    }else {
+                    } else {
                         const newI = parseNewIngredient(resultI)
                         await newI.save()
                         return res.json(newI)
                     }
-                }catch(error) {
+                } catch (error) {
                     console.log(error)
                 }
             } else {
@@ -217,6 +218,43 @@ cocktailRouter.get('/ingredient', async (req, res) => {
         console.log(error)
         return handleErrorResponse(res, 500, 'Database Error.');
     }
+})
+
+cocktailRouter.put('/updateRating', async (req, res) => {
+    const { id } = req.query
+    const { likes, dislikes } = req.body
+
+    if (!id || isNaN(id) || !Number.isInteger(Number(id))) {
+        return handleErrorResponse(res, 400, 'ID input is not a valid integer.');
+    }
+
+    if (
+        (likes !== undefined && (isNaN(likes) || !Number.isInteger(Number(likes)) || likes < 0)) ||
+        (dislikes !== undefined && (isNaN(dislikes) || !Number.isInteger(Number(dislikes)) || dislikes < 0))
+    ) {
+        return handleErrorResponse(res, 400, 'Likes and dislikes must be non-negative integers.');
+    }
+
+    try {
+        const updatedCocktail = await Cocktail.findByIdAndUpdate(
+            id,
+            {
+                ...(likes !== undefined && { likes }),
+                ...(dislikes !== undefined && { dislikes })
+            },
+            { new: true, runValidators: true } // `new` returns the updated document
+        );
+
+        if (!updatedCocktail) {
+            return handleErrorResponse(res, 404, 'Cocktail not found.');
+        }
+
+        return res.json(updatedCocktail);
+    } catch (error) {
+        console.error(error);
+        return handleErrorResponse(res, 500, 'Database Error.', error.message);
+    }
+
 })
 
 

@@ -43,7 +43,9 @@ const CocktailSchema = new mongoose.Schema({
     dateModified: {
         type: Date,
         index: true
-    }
+    }, 
+    likes: Number,
+    dislikes: Number
 })
 
 CocktailSchema.plugin(uniqueValidator);
