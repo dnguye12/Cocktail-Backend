@@ -8,6 +8,8 @@ const app = express();
 const cors = require("cors");
 
 const cocktailRouter = require('./controllers/cocktail')
+const userRouter = require('./controllers/user')
+const ratingRouter = require('./controllers/rating')
 
 const middleware = require("./utils/middleware");
 const logger = require("./utils/logger");
@@ -40,7 +42,9 @@ const speedLimiter = slowDown({
   delayMs: (hits) => hits * 500,
 })
 
-app.use('/api', speedLimiter, cocktailRouter)
+app.use('/api/cocktail', speedLimiter, cocktailRouter)
+app.use('/api/user', userRouter)
+app.use('/api/rating', ratingRouter)
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);

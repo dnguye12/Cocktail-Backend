@@ -43,14 +43,30 @@ const CocktailSchema = new mongoose.Schema({
     dateModified: {
         type: Date,
         index: true
-    }, 
-    likes: Number,
-    dislikes: Number
+    },
+    ratings: {
+        type: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Rating',
+            },
+        ],
+        default: [], // Default value for ratings
+    },
+    comments: {
+        type: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Comment',
+            },
+        ],
+        default: [], // Default value for comments
+    },
 })
 
 CocktailSchema.plugin(uniqueValidator);
 
-CocktailSchema.index({ 
+CocktailSchema.index({
     name: 1,
     category: 1,
     isAlcoholic: 1
