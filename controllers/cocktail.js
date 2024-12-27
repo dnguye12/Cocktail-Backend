@@ -254,9 +254,63 @@ cocktailRouter.put('/updateRating', async (req, res) => {
         console.error(error);
         return handleErrorResponse(res, 500, 'Database Error.', error.message);
     }
-
 })
 
+cocktailRouter.get('/lowest-rated', async (req, res) => {
+    try {
+        const lowestRatedCocktails = await Cocktail.aggregate([
+            { $match: { ratings: { $exists: true, $ne: [] } } },
+            {
+                $addFields: {
+                    averageRating: {
+                        $avg: "$ratings.stars"
+                    }
+                }
+            },
+            { $sort: { averageRating: 1 } },
+            { $limit: 4 }
+        ])
+        const populatedCocktails = await Cocktail.populate(lowestRatedCocktails, {path: 'ratings'})
+        return res.status(200).json(populatedCocktails.reverse())
+    } catch (error) {
+        console.error(error);
+        return handleErrorResponse(res, 500, 'Database Error.', error.message);
+    }
+})
 
+cocktailRouter.get('/highest-rated', async (req, res) => {
+    try {
+        const highestRatedCocktails = await Cocktail.aggregate([
+            { $match: { ratings: { $exists: true, $ne: [] } } },
+            {
+                $addFields: {
+                    averageRating: {
+                        $avg: "$ratings.stars"
+                    }
+                }
+            },
+            { $sort: { averageRating: -1 } },
+            { $limit: 4 }
+        ])
+
+        const populatedCocktails = await Cocktail.populate(highestRatedCocktails, {path: 'ratings'})
+        return res.status(200).json(populatedCocktails.reverse())
+    } catch (error) {
+        console.error(error);
+        return handleErrorResponse(res, 500, 'Database Error.', error.message);
+    }
+})
+
+cocktailRouter.get('/popular', async (req, res) => {
+    try {
+        const popularCocktails = await Cocktail.find({ ratings: { $exists: true, $ne: [] } })
+            .sort({ 'ratings.length': -1 })
+            .limit(4)
+            .populate({path: "ratings"})
+        return res.status(200).json(popularCocktails.reverse());
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = cocktailRouter

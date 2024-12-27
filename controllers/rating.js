@@ -116,6 +116,25 @@ ratingRouter.get('/by-cocktail', async (req, res) => {
     }
 })
 
+ratingRouter.get('/by-user', async (req, res) => {
+    const { userId } = req.query
+    if (!userId) {
+        return res.status(400).json('Error missing input')
+    }
+    try {
+        const ratings = await Rating.find({ user: userId }).populate({ path: "cocktail" })
+
+        if (ratings) {
+            return res.status(200).json(ratings)
+        } else {
+            return res.status(200).json(null)
+        }
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json('Internal error')
+    }
+})
+
 ratingRouter.get('/user-has-rated-cocktail', async (req, res) => {
     const { userId, cocktailId } = req.query
 
