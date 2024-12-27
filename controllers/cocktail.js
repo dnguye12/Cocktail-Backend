@@ -44,8 +44,7 @@ const parseNewDrink = (drink) => {
             { ingredient: drink.strIngredient15, measure: drink.strMeasure15 }
         ].filter(item => item.ingredient), // Filter out null ingredients
         dateModified: drink.dateModified ? new Date(drink.dateModified) : null,
-        likes: 0,
-        dislikes: 0
+        ratings: []
     });
 }
 
@@ -91,7 +90,7 @@ cocktailRouter.get('/id', async (req, res) => {
                 }
 
 
-                res.json(result.data.drinks)
+                return res.json(result.data.drinks)
             } else {
                 return handleErrorResponse(res, 403, 'No drink for this id.');
             }
@@ -270,7 +269,7 @@ cocktailRouter.get('/lowest-rated', async (req, res) => {
             { $sort: { averageRating: 1 } },
             { $limit: 4 }
         ])
-        const populatedCocktails = await Cocktail.populate(lowestRatedCocktails, {path: 'ratings'})
+        const populatedCocktails = await Cocktail.populate(lowestRatedCocktails, { path: 'ratings' })
         return res.status(200).json(populatedCocktails.reverse())
     } catch (error) {
         console.error(error);
@@ -293,7 +292,7 @@ cocktailRouter.get('/highest-rated', async (req, res) => {
             { $limit: 4 }
         ])
 
-        const populatedCocktails = await Cocktail.populate(highestRatedCocktails, {path: 'ratings'})
+        const populatedCocktails = await Cocktail.populate(highestRatedCocktails, { path: 'ratings' })
         return res.status(200).json(populatedCocktails.reverse())
     } catch (error) {
         console.error(error);
@@ -306,11 +305,48 @@ cocktailRouter.get('/popular', async (req, res) => {
         const popularCocktails = await Cocktail.find({ ratings: { $exists: true, $ne: [] } })
             .sort({ 'ratings.length': -1 })
             .limit(4)
-            .populate({path: "ratings"})
+            .populate({ path: "ratings" })
         return res.status(200).json(popularCocktails.reverse());
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
+
+cocktailRouter.get('/search-name', async (req, res) => {
+    const { name } = req.query
+
+    if (!name) {
+        return res.status(400).json("Empty input")
+    }
+
+    try {
+        const request = await axios.get(`${config.COCKTAIL_API}search.php?s=${name}`)
+        const drinks = request.data.drinks;
+        const returnedDrinks = []
+        if (!drinks) {
+            return res.status(200).json([])
+        } else {
+            for(const drink of drinks) {
+                try {
+                    const cock = await Cocktail.findById(drink.idDrink).populate({path: 'ratings'});
+    
+                    if (!cock) {
+                        const newCocktail = parseNewDrink(drink);
+                        const savedDrink = await newCocktail.save();
+                        returnedDrinks.push(savedDrink)
+                    }else {
+                        returnedDrinks.push(cock)
+                    }
+                } catch (error) {
+                    console.error(`Error processing drink with id ${drink.idDrink}:`, error);
+                }
+            }
+
+            return res.status(200).json(returnedDrinks)
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+})
 
 module.exports = cocktailRouter

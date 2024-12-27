@@ -53,15 +53,6 @@ const CocktailSchema = new mongoose.Schema({
         ],
         default: [], // Default value for ratings
     },
-    comments: {
-        type: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Comment',
-            },
-        ],
-        default: [], // Default value for comments
-    },
 })
 
 CocktailSchema.plugin(uniqueValidator);
